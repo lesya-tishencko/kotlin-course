@@ -1,14 +1,72 @@
 package ru.spbau.mit
 
-fun getGreeting(): String {
-    val words = mutableListOf<String>()
-    words.add("Hello,")
-    
-    words.add("world!")
+import java.util.*
 
-    return words.joinToString(separator = " ")
+class parser(val content: String) {
+    private var position = 0
+
+    private fun readTag(tag: String) = when {
+        content.length <= position -> false
+        content.substring(position).startsWith(tag) -> {
+            position += tag.length
+            true
+        }
+        else -> false
+    }
+
+    fun openTable() = readTag("<table>")
+    fun closeTable() = readTag("</table>")
+    fun openRow() = readTag("<tr>")
+    fun closeRow() = readTag("</tr>")
+    fun openCell() = readTag("<td>")
+    fun closeCell() = readTag("</td>")
+}
+
+class reader(val parser: parser) {
+    private val answers = mutableListOf<Int>()
+
+    fun readTable(): Unit {
+        var sum = 0
+        parser.openTable()
+        while (!parser.closeTable()) {
+            sum += readRow()
+        }
+        answers.add(sum)
+    }
+
+    fun getAnswer(): String {
+        answers.sort()
+        return answers.map {i -> i.toString()}.joinToString(separator = " ")
+    }
+
+    private fun  readRow(): Int {
+        var sum = 0
+        parser.openRow()
+        while (!parser.closeRow()) {
+            sum += readCell()
+        }
+        return sum
+    }
+
+    private fun  readCell(): Int {
+        parser.openCell()
+        if (!parser.closeCell()) {
+            readTable()
+        }
+        parser.closeCell()
+        return 1
+    }
 }
 
 fun main(args: Array<String>) {
-    println(getGreeting())
+    var input = ""
+    val scanner = Scanner(System.`in`)
+    while (scanner.hasNext()) {
+        input += scanner.nextLine()!!
+    }
+
+    val parser = parser(input)
+    val reader = reader(parser)
+    reader.readTable()
+    print(reader.getAnswer())
 }
