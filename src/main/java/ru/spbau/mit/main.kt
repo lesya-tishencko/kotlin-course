@@ -1,14 +1,19 @@
 package ru.spbau.mit
 
-fun getGreeting(): String {
-    val words = mutableListOf<String>()
-    words.add("Hello,")
-    
-    words.add("world!")
-
-    return words.joinToString(separator = " ")
-}
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Paths
 
 fun main(args: Array<String>) {
-    println(getGreeting())
+    val path = System.getProperty("user.dir")
+    val mainPath = Paths.get(path + "/build/program.txt")
+    val programText = mutableListOf<String>()
+    Files.lines(mainPath, StandardCharsets.UTF_8).forEach { elem -> programText.add(elem) }
+    val lexer = Lexer(programText)
+    lexer.setSource()
+    val parser = Parser(lexer.programTokens)
+
+    val mainNode = parser.parseBlockNode(Scope()).component1()
+    val visitor = Executor()
+    mainNode.visit(visitor)
 }
