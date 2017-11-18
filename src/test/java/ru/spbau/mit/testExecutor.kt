@@ -14,7 +14,7 @@ class TestExecutor {
                         BinaryExpressionNode(IdentifierNode("a"), LiteralNode(1), KeyWord.ADD))),
                         scopeA
                         )))
-        val scopeFun = Scope(mutableMapOf(), mutableMapOf(foo to function))
+        val scopeFun = Scope(mutableMapOf(foo to function))
         val returnNode = ReturnNode(FunctionCallNode(foo, ArgumentsNode(mutableListOf(LiteralNode(20)))))
         val mainNode = BlockNode(mutableListOf(function, returnNode), scopeFun)
 
@@ -42,7 +42,7 @@ class TestExecutor {
         val valueNode = VariableNode(id, LiteralNode(3))
         val expr = BinaryExpressionNode(id, LiteralNode(5), KeyWord.LT)
         val scope = Scope(mutableMapOf(id to valueNode))
-        val body = AssigmentNode(id, BinaryExpressionNode(id, LiteralNode(1), KeyWord.ADD))
+        val body = AssignmentNode(id, BinaryExpressionNode(id, LiteralNode(1), KeyWord.ADD))
         val block = BlockWithBracesNode(BlockNode(mutableListOf(body), scope))
         val whileNode = WhileNode(expr, block)
         val returnNode = ReturnNode(id)
@@ -61,7 +61,7 @@ class TestExecutor {
         val function = FunctionNode(id, null, body)
         val functionCall = FunctionCallNode(id, null)
 
-        val mainNode = BlockNode(mutableListOf(function, functionCall), Scope(mutableMapOf(), mutableMapOf(id to function)))
+        val mainNode = BlockNode(mutableListOf(function, functionCall), Scope(mutableMapOf(id to function)))
         val visitor = Executor()
         mainNode.visit(visitor)
         assertEquals(0, visitor.stack.last())

@@ -58,7 +58,7 @@ class TestParser {
         val printlnNode = (whileNode.body.block.statementList[0] as FunctionCallNode)!!
         assertEquals(IdentifierNode("println"), printlnNode.id)
         assertEquals(2, printlnNode.arguments!!.expressions.size)
-        assert(printlnNode.arguments!!.expressions[2] is FunctionCallNode)
+        assert(printlnNode.arguments!!.expressions[1] is FunctionCallNode)
     }
 
     @Test

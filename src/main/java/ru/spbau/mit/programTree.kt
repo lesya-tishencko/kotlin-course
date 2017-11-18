@@ -1,7 +1,5 @@
 package ru.spbau.mit
 
-import com.sun.org.apache.xpath.internal.operations.Variable
-
 abstract class Node {
     abstract fun visit(visitor: Visitor)
 }
@@ -30,12 +28,12 @@ data class ArgumentsNode(val expressions: MutableList<ExpressionNode>): Expressi
     override fun visit(visitor: Visitor) = visitor.visitArgumentsNode(this)
 }
 
-open class StatementNode : Node() {
+open class StatementNode() : Node() {
     override fun visit(visitor: Visitor) = visitor.visitStatementNode(this)
 }
 
-data class AssigmentNode(val id: IdentifierNode, val expr: ExpressionNode): StatementNode() {
-    override fun visit(visitor: Visitor) = visitor.visitAssigmentNode(this)
+data class AssignmentNode(val id: IdentifierNode, val expr: ExpressionNode): StatementNode() {
+    override fun visit(visitor: Visitor) = visitor.visitAssignmentNode(this)
 }
 
 data class WhileNode(val expr: ExpressionNode, val body: BlockWithBracesNode): StatementNode() {
@@ -74,9 +72,17 @@ data class FunctionNode(val id: IdentifierNode, val arguments: ParameterNamesNod
 }
 
 class Scope(val variables: MutableMap<IdentifierNode, StatementNode> = mutableMapOf(),
-            val notInitializedId: MutableSet<IdentifierNode> = mutableSetOf<IdentifierNode>()) {
+            private val notInitializedId: MutableSet<IdentifierNode> = mutableSetOf<IdentifierNode>()) {
+
     fun add(id: IdentifierNode, variable: StatementNode) = variables.put(id, variable)
     fun add(id: IdentifierNode) = notInitializedId.add(id)
     fun get(id: IdentifierNode) = variables[id]
     fun contains(id: IdentifierNode) = variables.containsKey(id) || notInitializedId.contains(id)
+    fun copy(): Scope {
+        val newVariables = mutableMapOf<IdentifierNode, StatementNode>()
+        variables.forEach { id, variable -> newVariables.put(id, variable) }
+        val newIds = mutableSetOf<IdentifierNode>()
+        notInitializedId.forEach { id -> newIds.add(id.copy()) }
+        return Scope(newVariables, newIds)
+    }
 }

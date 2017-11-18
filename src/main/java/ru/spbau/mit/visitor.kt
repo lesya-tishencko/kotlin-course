@@ -6,7 +6,7 @@ abstract class Visitor {
     abstract fun visitBinaryExpressionNode(node: BinaryExpressionNode)
     abstract fun visitFunctionCallNode(node: FunctionCallNode)
     abstract fun visitArgumentsNode(node: ArgumentsNode)
-    abstract fun visitAssigmentNode(node: AssigmentNode)
+    abstract fun visitAssignmentNode(node: AssignmentNode)
     abstract fun visitWhileNode(node: WhileNode)
     abstract fun visitBlockNode(node: BlockNode)
     abstract fun visitVariableNode(node: VariableNode)
@@ -21,11 +21,18 @@ abstract class Visitor {
 
 class Executor: Visitor() {
     val stack = mutableListOf<Any>()
-    val scopesList = mutableListOf<Scope>()
+    private val scopesList = mutableListOf<Pair<IdentifierNode, StatementNode>>()
+
+    private fun find(entity: IdentifierNode): StatementNode {
+        return scopesList.reversed()
+                .firstOrNull { (key, value) -> key == entity }
+                ?.let { (key, value) -> value }
+                ?: StatementNode();
+    }
 
     override fun visitIdentifierNode(node: IdentifierNode) {
-        val variable = scopesList.last().get(node) ?: throw ExecutorError("Uninitialized variable ${node.name}")
-        visitExpressionNode((variable as VariableNode).expr!!)
+        val variable = find(node) as? VariableNode ?: throw ExecutorError("Using uninitialized variables")
+        variable.expr?.let { visitExpressionNode(it) }
     }
 
     override fun visitLiteralNode(node: LiteralNode) {
@@ -52,12 +59,13 @@ class Executor: Visitor() {
             }
             println()
         } else {
-            val function = scopesList.last().get(node.id) as FunctionNode
-            var index = 0
-            for (arg in function?.arguments?.idList!!) {
+            val function = find(node.id) as FunctionNode
+            for ((index, arg) in function.arguments?.idList!!.withIndex()) {
                 val value = function.body.block.scope.get(arg) as VariableNode
-                node.arguments?.expressions?.get(index)?.let { value?.setExpression(it) }
-                index++
+                node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
+                if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
+                value?.setExpression(LiteralNode(stack.last() as Int))
+                stack.remove(stack.last())
             }
             visitBlockWithBracesNode(function.body)
             if (checkReturnStatement()) stack.remove(stack.last())
@@ -66,9 +74,12 @@ class Executor: Visitor() {
 
     override fun visitArgumentsNode(node: ArgumentsNode) {}
 
-    override fun visitAssigmentNode(node: AssigmentNode) {
-        val variable = scopesList.last().get(node.id) as VariableNode
-        variable?.setExpression(node.expr)
+    override fun visitAssignmentNode(node: AssignmentNode) {
+        val variable = find(node.id) as VariableNode
+        visitExpressionNode(node.expr)
+        if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
+        variable?.setExpression(LiteralNode(stack.last() as Int))
+        stack.remove(stack.last())
     }
 
     override fun visitWhileNode(node: WhileNode) {
@@ -83,12 +94,13 @@ class Executor: Visitor() {
     }
 
     override fun visitBlockNode(node: BlockNode) {
-        scopesList.add(node.scope)
+        val newScopeStatementsCount = node.scope.variables.size
+        node.scope.variables.forEach { key, value -> scopesList.add(Pair(key, value)) }
         for (statement in node.statementList) {
             visitStatementNode(statement)
             if (checkReturnStatement()) break
         }
-        scopesList.remove(scopesList.last())
+        scopesList.removeAll(scopesList.takeLast(newScopeStatementsCount))
     }
 
     override fun visitVariableNode(node: VariableNode) {
@@ -145,7 +157,7 @@ class Executor: Visitor() {
         KeyWord.NEQ -> { a: Any, b: Any -> a != b }
         KeyWord.AND -> { a: Any, b: Any -> a as Boolean && b as Boolean }
         KeyWord.OR -> { a: Any, b: Any -> a as Boolean || b as Boolean }
-        else -> { a: Any, b: Any -> 0 }
+        else -> { _: Any, _: Any -> 0 }
     }
 
     private fun checkReturnStatement() = when {

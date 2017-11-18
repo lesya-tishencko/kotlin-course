@@ -6,7 +6,7 @@ class Parser(val tokenList: List<List<Token>>) {
 
     fun parseBlockNode(scope: Scope): Pair<BlockNode, Scope> {
         val statements: MutableList<StatementNode> = mutableListOf()
-        var newScope = Scope(scope.variables, scope.notInitializedId)
+        var newScope = scope.copy()
         do {
             val (expr, nextScope) = parseStatementNode(newScope)
             statements.add(expr)
@@ -69,7 +69,7 @@ class Parser(val tokenList: List<List<Token>>) {
         do {
             incrementPosition()
             expressionList.add(parseExpressionNode(scope).component1())
-            tryIncrementPosition()
+            incrementPosition()
             val comma = tokenList[lineNumber][positionInLine] as? KeyWordToken
         } while (comma != null && comma.tok == KeyWord.COMMA)
         decrementPosition()
@@ -88,11 +88,11 @@ class Parser(val tokenList: List<List<Token>>) {
         }
     }
 
-    private fun parseAssigmentNode(scope: Scope): Pair<AssigmentNode, Scope> {
+    private fun parseAssigmentNode(scope: Scope): Pair<AssignmentNode, Scope> {
         val (id, _) = parseIdentifierNode(scope)
         incrementPosition(2)
         val (expression, _) = parseExpressionNode(scope)
-        return AssigmentNode(id, expression) to scope
+        return AssignmentNode(id, expression) to scope
     }
 
     private fun parseReturnNode(scope: Scope): Pair<ReturnNode, Scope> {
@@ -113,10 +113,12 @@ class Parser(val tokenList: List<List<Token>>) {
 
         var blockElse: BlockWithBracesNode? = null
         tryIncrementPosition()
-        val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (nextTok != null && nextTok.tok == KeyWord.ELSE) {
-            blockElse = parseBlockWithBracesNode(scope).component1()
-        } else {
+        if (lineNumber != tokenList.size) {
+            val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            if (nextTok != null && nextTok.tok == KeyWord.ELSE) {
+                blockElse = parseBlockWithBracesNode(scope).component1()
+            }
+        }else {
             decrementPosition()
         }
         return IfNode(expression, blockThen, blockElse) to scope
@@ -141,15 +143,17 @@ class Parser(val tokenList: List<List<Token>>) {
 
         var expression: ExpressionNode? = null
         tryIncrementPosition()
-        val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
-            incrementPosition()
-            expression = parseExpressionNode(scope).component1()
-        } else {
-            decrementPosition()
+        if (lineNumber != tokenList.size) {
+            val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
+                incrementPosition()
+                expression = parseExpressionNode(scope).component1()
+            } else {
+                decrementPosition()
+            }
         }
         val variable = VariableNode(id, expression)
-        val newScope = Scope(scope.variables)
+        val newScope = Scope(scope.variables.toMutableMap())
         newScope.add(id, variable)
         return variable to newScope
     }
@@ -164,7 +168,7 @@ class Parser(val tokenList: List<List<Token>>) {
         incrementPosition()
 
         var parameters: ParameterNamesNode? = null
-        var newScope = Scope(scope.variables)
+        var newScope = scope.copy()
         paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
         if (paren == null) {
             val parsed = parseParametersNode(scope)
@@ -178,19 +182,19 @@ class Parser(val tokenList: List<List<Token>>) {
         val (block, _) = parseBlockWithBracesNode(newScope)
         if (block.block.statementList.last() !is ReturnNode) block.block.statementList.add(ReturnNode(LiteralNode(0)))
         val function = FunctionNode(id, parameters, block)
-        newScope = Scope(scope.variables)
+        newScope = scope.copy()
         newScope.add(id, function)
         return function to newScope
     }
 
     private fun parseParametersNode(scope: Scope): Pair<ParameterNamesNode, Scope> {
         val parametersList = mutableListOf<IdentifierNode>()
-        val newScope = Scope(scope.variables)
+        val newScope = scope.copy()
         do {
             val (id, _) = parseIdentifierNode(scope)
             parametersList.add(id)
             newScope.add(id, VariableNode(id, null))
-            tryIncrementPosition()
+            incrementPosition()
             val comma = tokenList[lineNumber][positionInLine] as? KeyWordToken
         } while (comma != null && comma.tok == KeyWord.COMMA)
         decrementPosition()
@@ -215,6 +219,7 @@ class Parser(val tokenList: List<List<Token>>) {
 
     private fun parseBinaryOperationNode(scope: Scope, stopToken: KeyWordToken?): Pair<ExpressionNode, Scope> {
         fun endOfExpression(): Boolean {
+            if (lineNumber == tokenList.size) return true
             val tok = tokenList[lineNumber][positionInLine] as? KeyWordToken
             return positionInLine == 0 || (stopToken != null && tok == stopToken) || (tok != null &&
                     (tok.tok == KeyWord.RPAREN || tok.tok == KeyWord.RBRACE || tok.tok == KeyWord.COMMA))
@@ -231,7 +236,7 @@ class Parser(val tokenList: List<List<Token>>) {
         }
 
         if (arg1 == IdentifierNode("fun")) {
-            tryIncrementPosition()
+            incrementPosition()
             nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
             decrementPosition()
             if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
@@ -293,8 +298,7 @@ class Parser(val tokenList: List<List<Token>>) {
     }
 
     private fun parseIdentifierNode(scope: Scope): Pair<IdentifierNode, Scope> {
-        val id = tokenList[lineNumber][positionInLine]
-        if (id !is IdToken) throw ParserError("Unknown symbol in line$lineNumber")
+        val id = tokenList[lineNumber][positionInLine] as? IdToken ?: throw ParserError("Unknown symbol in line$lineNumber")
         return IdentifierNode((id as IdToken).string) to scope
     }
 
