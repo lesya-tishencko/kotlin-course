@@ -15,6 +15,8 @@ class TestMain {
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
         mainNode.visit(visitor)
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
         assertEquals(42, visitor.stack.last())
     }
 

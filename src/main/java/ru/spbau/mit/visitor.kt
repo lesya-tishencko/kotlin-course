@@ -60,6 +60,12 @@ class Executor: Visitor() {
             println()
         } else {
             val function = find(node.id) as FunctionNode
+            function.body.block.scope.variables.forEach { (key, _) ->
+                val valueFromScope = find(key)
+                when (valueFromScope) {
+                    is VariableNode -> function.body.block.scope.add(key, valueFromScope)
+                }
+            }
             if (function.arguments != null) {
                 for ((index, arg) in function.arguments.idList!!.withIndex()) {
                     val value = (function.body.block.scope.get(arg) as VariableNode).copy()
