@@ -120,6 +120,8 @@ class Parser(val tokenList: List<List<Token>>) {
             } else {
                 decrementPosition()
             }
+        } else {
+            decrementPosition()
         }
         return IfNode(expression, blockThen, blockElse) to scope
     }

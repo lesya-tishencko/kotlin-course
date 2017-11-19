@@ -20,6 +20,8 @@ class TestExecutor {
 
         val visitor = Executor()
         mainNode.visit(visitor)
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
         assertEquals(21, visitor.stack.last())
     }
 
@@ -33,6 +35,8 @@ class TestExecutor {
 
         val visitor = Executor()
         mainNode.visit(visitor)
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
         assertEquals(0, visitor.stack.last())
     }
 
@@ -50,6 +54,8 @@ class TestExecutor {
         val mainNode = BlockNode(mutableListOf(valueNode, whileNode, returnNode), scope)
         val visitor = Executor()
         mainNode.visit(visitor)
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
         assertEquals(5, visitor.stack.last())
     }
 
