@@ -40,7 +40,7 @@ val strToTokenMap = mapOf(
         "&&" to KeyWord.AND
 )
 
-class Lexer(val programText: List<String>) {
+class Lexer(private val programText: List<String>) {
     val programTokens: MutableList<MutableList<Token>> = mutableListOf()
 
     fun setSource() = programText.forEach {
@@ -55,10 +55,10 @@ class Lexer(val programText: List<String>) {
             if (pos >= line.length) return ""
             var result = ""
             while (pos < line.length && !line[pos].isWhitespace()) {
-                when (line[pos]) {
-                    '/' -> if (result.last() == '/') return "" else result += line[pos++]
+                result += when (line[pos]) {
+                    '/' -> if (result.last() == '/') return "" else line[pos++]
                     '(', ')', ',' -> if (result.isEmpty()) return line[pos++].toString() else return result
-                    else -> result += line[pos++]
+                    else -> line[pos++]
                 }
             }
             return result

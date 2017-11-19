@@ -5,8 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 
 fun main(args: Array<String>) {
-    val path = System.getProperty("user.dir")
-    val mainPath = Paths.get(path + "/build/program.txt")
+    val mainPath = Paths.get(args[0])
     val programText = mutableListOf<String>()
     Files.lines(mainPath, StandardCharsets.UTF_8).forEach { elem -> programText.add(elem) }
     val lexer = Lexer(programText)

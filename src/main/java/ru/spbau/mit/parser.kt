@@ -19,12 +19,13 @@ class Parser(val tokenList: List<List<Token>>) {
     }
 
     private fun tryIncrementPosition() {
-        if (tokenList[lineNumber].size == positionInLine + 1) {
-            lineNumber++
-            while(lineNumber < tokenList.size && tokenList[lineNumber].isEmpty()) lineNumber++
-            positionInLine = 0
-        } else {
-            positionInLine++
+        when {
+            tokenList[lineNumber].size == positionInLine + 1 -> {
+                lineNumber++
+                while(lineNumber < tokenList.size && tokenList[lineNumber].isEmpty()) lineNumber++
+                positionInLine = 0
+            }
+            else -> positionInLine++
         }
     }
 
@@ -34,8 +35,10 @@ class Parser(val tokenList: List<List<Token>>) {
         KeyWordToken(KeyWord.WHILE) -> parseWhileNode(scope)
         KeyWordToken(KeyWord.IF) -> parseIfNode(scope)
         KeyWordToken(KeyWord.RETURN) -> parseReturnNode(scope)
-        else -> if (tokenList[lineNumber][positionInLine + 1] == KeyWordToken(KeyWord.ASSIGN)) parseAssigmentNode(scope)
-                else parseExpressionNode(scope)
+        else -> when {
+            tokenList[lineNumber][positionInLine + 1] == KeyWordToken(KeyWord.ASSIGN) -> parseAssignmentNode(scope)
+            else -> parseExpressionNode(scope)
+        }
     }
 
     private fun parseFunctionCallNode(scope: Scope): Pair<FunctionCallNode, Scope> {
@@ -47,17 +50,19 @@ class Parser(val tokenList: List<List<Token>>) {
         incrementPosition()
         var arguments: ArgumentsNode? = null
         paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null) {
-            arguments = parseArgumentsNode(scope).component1()
-            incrementPosition()
-            paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
+        when (paren) {
+            null -> {
+                arguments = parseArgumentsNode(scope).component1()
+                incrementPosition()
+                paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            }
         }
         if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
         return FunctionCallNode(id, arguments) to scope
     }
 
     private fun incrementPosition(count: Int = 1) {
-        for (i in 1..count) {
+        (1..count).forEach { _ ->
             tryIncrementPosition()
             if (lineNumber == tokenList.size) throw ParserError("Unexpected end of file in line$lineNumber")
         }
@@ -77,18 +82,19 @@ class Parser(val tokenList: List<List<Token>>) {
     }
 
     private fun decrementPosition(count: Int = 1) {
-        for (i in 1..count) {
-            if (positionInLine == 0) {
-                lineNumber--
-                while (tokenList[lineNumber].isEmpty()) lineNumber--
-                positionInLine = tokenList[lineNumber].size - 1
-            } else {
-                positionInLine--
+        (1..count).forEach { _ ->
+            when (positionInLine) {
+                0 -> {
+                    lineNumber--
+                    while (tokenList[lineNumber].isEmpty()) lineNumber--
+                    positionInLine = tokenList[lineNumber].size - 1
+                }
+                else -> positionInLine--
             }
         }
     }
 
-    private fun parseAssigmentNode(scope: Scope): Pair<AssignmentNode, Scope> {
+    private fun parseAssignmentNode(scope: Scope): Pair<AssignmentNode, Scope> {
         val (id, _) = parseIdentifierNode(scope)
         incrementPosition(2)
         val (expression, _) = parseExpressionNode(scope)
@@ -113,15 +119,15 @@ class Parser(val tokenList: List<List<Token>>) {
 
         var blockElse: BlockWithBracesNode? = null
         tryIncrementPosition()
-        if (lineNumber != tokenList.size) {
-            val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            if (nextTok != null && nextTok.tok == KeyWord.ELSE) {
-                blockElse = parseBlockWithBracesNode(scope).component1()
-            } else {
-                decrementPosition()
+        when {
+            lineNumber != tokenList.size -> {
+                val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                when {
+                    nextTok != null && nextTok.tok == KeyWord.ELSE -> blockElse = parseBlockWithBracesNode(scope).component1()
+                    else -> decrementPosition()
+                }
             }
-        } else {
-            decrementPosition()
+            else -> decrementPosition()
         }
         return IfNode(expression, blockThen, blockElse) to scope
     }
@@ -145,13 +151,15 @@ class Parser(val tokenList: List<List<Token>>) {
 
         var expression: ExpressionNode? = null
         tryIncrementPosition()
-        if (lineNumber != tokenList.size) {
-            val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
-                incrementPosition()
-                expression = parseExpressionNode(scope).component1()
-            } else {
-                decrementPosition()
+        when {
+            lineNumber != tokenList.size -> {
+                val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
+                    incrementPosition()
+                    expression = parseExpressionNode(scope).component1()
+                } else {
+                    decrementPosition()
+                }
             }
         }
         val variable = VariableNode(id, expression)
@@ -172,17 +180,21 @@ class Parser(val tokenList: List<List<Token>>) {
         var parameters: ParameterNamesNode? = null
         var newScope = scope.copy()
         paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null) {
-            val parsed = parseParametersNode(scope)
-            parameters = parsed.component1()
-            newScope = parsed.component2()
-            incrementPosition()
-            paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
+        when (paren) {
+            null -> {
+                val parsed = parseParametersNode(scope)
+                parameters = parsed.component1()
+                newScope = parsed.component2()
+                incrementPosition()
+                paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            }
         }
         if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
         newScope.add(id)
         val (block, _) = parseBlockWithBracesNode(newScope)
-        if (block.block.statementList.last() !is ReturnNode) block.block.statementList.add(ReturnNode(LiteralNode(0)))
+        when {
+            block.block.statementList.last() !is ReturnNode -> block.block.statementList.add(ReturnNode(LiteralNode(0)))
+        }
         val function = FunctionNode(id, parameters, block)
         newScope = scope.copy()
         newScope.add(id, function)
@@ -229,79 +241,88 @@ class Parser(val tokenList: List<List<Token>>) {
 
         var arg1: ExpressionNode = IdentifierNode("fun");
         var nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
-            incrementPosition()
-            arg1 = parseExpressionNode(scope).component1()
-            incrementPosition()
-            var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
-        }
-
-        if (arg1 == IdentifierNode("fun")) {
-            incrementPosition()
-            nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            decrementPosition()
-            if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
-                arg1 = parseFunctionCallNode(scope).component1()
+        when {
+            nextTok != null && nextTok.tok == KeyWord.LPAREN -> {
+                incrementPosition()
+                arg1 = parseExpressionNode(scope).component1()
+                incrementPosition()
+                var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
             }
         }
 
-        if (arg1 == IdentifierNode("fun")) {
-            if (tokenList[lineNumber][positionInLine] is LiteralToken)
-                arg1 = parseLiteralNode(scope).component1()
-            else
-                arg1 = parseIdentifierNode(scope).component1()
+        when (arg1) {
+            IdentifierNode("fun") -> {
+                incrementPosition()
+                nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                decrementPosition()
+                if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
+                    arg1 = parseFunctionCallNode(scope).component1()
+                }
+            }
+        }
+
+        when (arg1) {
+            IdentifierNode("fun") -> arg1 = when {
+                tokenList[lineNumber][positionInLine] is LiteralToken -> parseLiteralNode(scope).component1()
+                else -> parseIdentifierNode(scope).component1()
+            }
         }
 
         tryIncrementPosition()
-        if (endOfExpression()) {
-            decrementPosition()
-            return arg1 to scope
-        }
-
-        while (!endOfExpression()) {
-            val op = tokenList[lineNumber][positionInLine] as KeyWordToken
-
-            var step = -1
-            while (true) {
-                incrementPosition()
-                step++
-                var nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
-                    do {
-                        step++
-                        incrementPosition()
-                        nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                    } while (nextTok == null || nextTok.tok != KeyWord.RPAREN)
-                    incrementPosition()
-                    step++
-                }
-                if (endOfExpression() || (nextTok != null && isOpToken(nextTok) && getPriority(nextTok.tok) <= getPriority(op.tok)))
-                    break
+        when {
+            endOfExpression() -> {
+                decrementPosition()
+                return arg1 to scope
             }
+            else -> {
+                while (!endOfExpression()) {
+                    val op = tokenList[lineNumber][positionInLine] as KeyWordToken
 
-            val stopOp = tokenList[lineNumber][positionInLine] as KeyWordToken
-            decrementPosition(step)
+                    var step = -1
+                    while (true) {
+                        incrementPosition()
+                        step++
+                        nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                        when {
+                            nextTok != null && nextTok.tok == KeyWord.LPAREN -> {
+                                do {
+                                    step++
+                                    incrementPosition()
+                                    nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+                                } while (nextTok == null || nextTok.tok != KeyWord.RPAREN)
+                                incrementPosition()
+                                step++
+                            }
+                        }
+                        if (endOfExpression() || (nextTok != null && isOpToken(nextTok) && getPriority(nextTok.tok) <= getPriority(op.tok)))
+                            break
+                    }
 
-            val (arg2, _) = parseExpressionNode(scope, stopOp)
-            if (arg1 is IdentifierNode && !scope.contains(arg1)) throw ParserError("Not found declaration ${arg1.name} in line$lineNumber")
-            if (arg2 is IdentifierNode && !scope.contains(arg2)) throw ParserError("Not found declaration ${arg2.name} in line$lineNumber")
-            arg1 = BinaryExpressionNode(arg1, arg2, op.tok)
-            incrementPosition()
+                    val stopOp = tokenList[lineNumber][positionInLine] as KeyWordToken
+                    decrementPosition(step)
+
+                    val (arg2, _) = parseExpressionNode(scope, stopOp)
+                    if (arg1 is IdentifierNode && !scope.contains(arg1)) throw ParserError("Not found declaration ${arg1.name} in line$lineNumber")
+                    if (arg2 is IdentifierNode && !scope.contains(arg2)) throw ParserError("Not found declaration ${arg2.name} in line$lineNumber")
+                    arg1 = BinaryExpressionNode(arg1, arg2, op.tok)
+                    incrementPosition()
+                }
+                decrementPosition()
+                return arg1 to scope;
+            }
         }
-        decrementPosition()
-        return arg1 to scope;
+
     }
 
     private fun parseLiteralNode(scope: Scope): Pair<LiteralNode, Scope> {
-        val value = tokenList[lineNumber][positionInLine]
-        if (value !is LiteralToken) throw ParserError("Unknown symbol in line$lineNumber")
-        return LiteralNode((value as LiteralToken).int) to scope
+        val value = tokenList[lineNumber][positionInLine] as? LiteralToken ?: throw ParserError("Unknown symbol in line$lineNumber")
+        return LiteralNode(value.int) to scope
     }
 
     private fun parseIdentifierNode(scope: Scope): Pair<IdentifierNode, Scope> {
         val id = tokenList[lineNumber][positionInLine] as? IdToken ?: throw ParserError("Unknown symbol in line$lineNumber")
-        return IdentifierNode((id as IdToken).string) to scope
+        return IdentifierNode(id.string) to scope
     }
 
     private fun getPriority(op: KeyWord) = when(op) {
