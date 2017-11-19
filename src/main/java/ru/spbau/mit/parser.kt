@@ -117,9 +117,9 @@ class Parser(val tokenList: List<List<Token>>) {
             val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
             if (nextTok != null && nextTok.tok == KeyWord.ELSE) {
                 blockElse = parseBlockWithBracesNode(scope).component1()
+            } else {
+                decrementPosition()
             }
-        }else {
-            decrementPosition()
         }
         return IfNode(expression, blockThen, blockElse) to scope
     }
