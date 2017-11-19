@@ -28,7 +28,7 @@ data class ArgumentsNode(val expressions: MutableList<ExpressionNode>): Expressi
     override fun visit(visitor: Visitor) = visitor.visitArgumentsNode(this)
 }
 
-open class StatementNode() : Node() {
+open class StatementNode : Node() {
     override fun visit(visitor: Visitor) = visitor.visitStatementNode(this)
 }
 
@@ -80,9 +80,10 @@ class Scope(val variables: MutableMap<IdentifierNode, StatementNode> = mutableMa
     fun contains(id: IdentifierNode) = variables.containsKey(id) || notInitializedId.contains(id)
     fun copy(): Scope {
         val newVariables = mutableMapOf<IdentifierNode, StatementNode>()
-        variables.forEach { id, variable -> newVariables.put(id, variable) }
+        variables.forEach { id, variable -> if (variable is VariableNode) newVariables.put(id, variable.copy()) else
+            newVariables.put(id, (variable as FunctionNode).copy()) }
         val newIds = mutableSetOf<IdentifierNode>()
-        notInitializedId.forEach { id -> newIds.add(id.copy()) }
+        notInitializedId.forEach { id -> newIds.add(id) }
         return Scope(newVariables, newIds)
     }
 }

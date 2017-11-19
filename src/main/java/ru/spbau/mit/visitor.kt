@@ -21,7 +21,7 @@ abstract class Visitor {
 
 class Executor: Visitor() {
     val stack = mutableListOf<Any>()
-    private val scopesList = mutableListOf<Pair<IdentifierNode, StatementNode>>()
+    private var scopesList = mutableListOf<Pair<IdentifierNode, StatementNode>>()
 
     private fun find(entity: IdentifierNode): StatementNode {
         return scopesList.reversed()
@@ -43,9 +43,9 @@ class Executor: Visitor() {
         visitExpressionNode(node.left)
         visitExpressionNode(node.right)
         val right = stack.last()
-        stack.remove(stack.last())
+        stack.removeAt(stack.lastIndex)
         val left = stack.last()
-        stack.remove(stack.last())
+        stack.removeAt(stack.lastIndex)
         stack.add(getOpByToken(node.op)(left, right))
     }
 
@@ -55,20 +55,21 @@ class Executor: Visitor() {
                 visitExpressionNode(arg)
                 print(stack.last())
                 print(" ")
-                stack.remove(stack.last())
+                stack.removeAt(stack.lastIndex)
             }
             println()
         } else {
             val function = find(node.id) as FunctionNode
             for ((index, arg) in function.arguments?.idList!!.withIndex()) {
-                val value = function.body.block.scope.get(arg) as VariableNode
+                val value = (function.body.block.scope.get(arg) as VariableNode).copy()
                 node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
                 if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
                 value?.setExpression(LiteralNode(stack.last() as Int))
-                stack.remove(stack.last())
+                function.body.block.scope.add(value.id, value)
+                stack.removeAt(stack.lastIndex)
             }
             visitBlockWithBracesNode(function.body)
-            if (checkReturnStatement()) stack.remove(stack.last())
+            if (checkReturnStatement()) stack.removeAt(stack.lastIndex)
         }
     }
 
@@ -79,14 +80,14 @@ class Executor: Visitor() {
         visitExpressionNode(node.expr)
         if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
         variable?.setExpression(LiteralNode(stack.last() as Int))
-        stack.remove(stack.last())
+        stack.removeAt(stack.lastIndex)
     }
 
     override fun visitWhileNode(node: WhileNode) {
         while (true) {
             visitExpressionNode(node.expr)
             val condition = stack.last() as Boolean
-            stack.remove(stack.last())
+            stack.removeAt(stack.lastIndex)
             if (condition != null && !condition) break
             visitBlockWithBracesNode(node.body)
             if (checkReturnStatement()) break
@@ -100,7 +101,7 @@ class Executor: Visitor() {
             visitStatementNode(statement)
             if (checkReturnStatement()) break
         }
-        scopesList.removeAll(scopesList.takeLast(newScopeStatementsCount))
+        scopesList = scopesList.take(scopesList.size - newScopeStatementsCount).toMutableList()
     }
 
     override fun visitVariableNode(node: VariableNode) {
@@ -118,7 +119,7 @@ class Executor: Visitor() {
     override fun visitIfNode(node: IfNode) {
         visitExpressionNode(node.expr)
         val condition = stack.last() as Boolean
-        stack.remove(stack.last())
+        stack.removeAt(stack.lastIndex)
         if (condition != null && condition) {
             visitBlockWithBracesNode(node.thenBlock)
         } else if (node.elseBlock != null) {
