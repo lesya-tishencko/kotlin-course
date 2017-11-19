@@ -31,7 +31,9 @@ class TestMain {
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
         mainNode.visit(visitor)
-        assertEquals(5, visitor.stack.last())
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
+        assertEquals(8, visitor.stack.last())
     }
 
     @Test
@@ -46,6 +48,8 @@ class TestMain {
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
         mainNode.visit(visitor)
+        assertEquals("RETURN STATEMENT", visitor.stack.last())
+        visitor.stack.remove(visitor.stack.last())
         assertEquals(0, visitor.stack.last())
     }
 }

@@ -60,13 +60,15 @@ class Executor: Visitor() {
             println()
         } else {
             val function = find(node.id) as FunctionNode
-            for ((index, arg) in function.arguments?.idList!!.withIndex()) {
-                val value = (function.body.block.scope.get(arg) as VariableNode).copy()
-                node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
-                if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
-                value?.setExpression(LiteralNode(stack.last() as Int))
-                function.body.block.scope.add(value.id, value)
-                stack.removeAt(stack.lastIndex)
+            if (function.arguments != null) {
+                for ((index, arg) in function.arguments.idList!!.withIndex()) {
+                    val value = (function.body.block.scope.get(arg) as VariableNode).copy()
+                    node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
+                    if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("!!!")
+                    value?.setExpression(LiteralNode(stack.last() as Int))
+                    function.body.block.scope.add(value.id, value)
+                    stack.removeAt(stack.lastIndex)
+                }
             }
             visitBlockWithBracesNode(function.body)
             if (checkReturnStatement()) stack.removeAt(stack.lastIndex)

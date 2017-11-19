@@ -61,13 +61,12 @@ class TestExecutor {
 
     @Test
     fun testAutoReturn() {
-        val id = IdentifierNode("foo")
-        val body = BlockWithBracesNode(BlockNode(mutableListOf(FunctionCallNode(IdentifierNode("println"),
-                ArgumentsNode(mutableListOf(LiteralNode(0))))), Scope()))
-        val function = FunctionNode(id, null, body)
-        val functionCall = FunctionCallNode(id, null)
+        val programText = listOf("fun foo() { println(0) }", "foo()")
+        val lexer = Lexer(programText)
+        lexer.setSource()
+        val parser = Parser(lexer.programTokens)
 
-        val mainNode = BlockNode(mutableListOf(function, functionCall), Scope(mutableMapOf(id to function)))
+        val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
         mainNode.visit(visitor)
         assertEquals(0, visitor.stack.last())
