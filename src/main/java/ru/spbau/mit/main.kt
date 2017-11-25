@@ -1,5 +1,8 @@
 package ru.spbau.mit
 
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.Reader
 import java.util.*
 
 class parser(val content: String) {
@@ -36,7 +39,7 @@ class reader(val parser: parser) {
 
     fun getAnswer(): String {
         answers.sort()
-        return answers.map {i -> i.toString()}.joinToString(separator = " ")
+        return answers.joinToString(separator = " ")
     }
 
     private fun  readRow(): Int {
@@ -59,13 +62,10 @@ class reader(val parser: parser) {
 }
 
 fun main(args: Array<String>) {
-    var input = ""
-    val scanner = Scanner(System.`in`)
-    while (scanner.hasNext()) {
-        input += scanner.nextLine()!!
-    }
-
-    val parser = parser(input)
+    var input = StringBuilder()
+    val scanner = InputStreamReader(System.`in`)
+    scanner.forEachLine { input.append(it) }
+    val parser = parser(input.toString())
     val reader = reader(parser)
     reader.readTable()
     print(reader.getAnswer())
