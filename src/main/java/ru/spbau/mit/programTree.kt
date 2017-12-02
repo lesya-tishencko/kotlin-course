@@ -45,9 +45,6 @@ data class BlockNode(val statementList: MutableList<StatementNode>, val scope: S
 }
 
 data class VariableNode(val id: IdentifierNode, var expr: ExpressionNode?): StatementNode() {
-    fun setExpression(expression: ExpressionNode) {
-        expr = expression
-    }
     override fun visit(visitor: Visitor) = visitor.visitVariableNode(this)
 }
 

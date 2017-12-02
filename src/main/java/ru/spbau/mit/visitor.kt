@@ -50,41 +50,34 @@ class Executor: Visitor() {
     }
 
     override fun visitFunctionCallNode(node: FunctionCallNode) {
-        when {
-            node.id == IdentifierNode("println") -> {
-                node.arguments?.expressions!!.forEach { arg ->
-                    visitExpressionNode(arg)
-                    print(stack.last())
-                    print(" ")
+        if (node.id == IdentifierNode("println")) {
+            node.arguments?.expressions!!.forEach { arg ->
+                visitExpressionNode(arg)
+                print(stack.last())
+                print(" ")
+                stack.removeAt(stack.lastIndex)
+            }
+            println()
+        }
+        else {
+            val function = find(node.id) as FunctionNode
+            function.body.block.scope.variables.forEach { (key, _) ->
+                val valueFromScope = find(key)
+                if (valueFromScope is VariableNode) function.body.block.scope.add(key, valueFromScope)
+            }
+            if (function.arguments != null) function.arguments.idList.withIndex().forEach { (index, arg) ->
+                val value = (function.body.block.scope.get(arg) as VariableNode).copy()
+                node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
+                if (stack.size == 0 || stack.last() !is Int)
+                    throw ExecutorError("Incorrect expression in function call ${function.id.name}")
+                else {
+                    value.expr = LiteralNode(stack.last() as Int)
+                    function.body.block.scope.add(value.id, value)
                     stack.removeAt(stack.lastIndex)
                 }
-                println()
             }
-            else -> {
-                val function = find(node.id) as FunctionNode
-                function.body.block.scope.variables.forEach { (key, _) ->
-                    val valueFromScope = find(key)
-                    when (valueFromScope) {
-                        is VariableNode -> function.body.block.scope.add(key, valueFromScope)
-                    }
-                }
-                when {
-                    function.arguments != null -> function.arguments.idList.withIndex().forEach { (index, arg) ->
-                        val value = (function.body.block.scope.get(arg) as VariableNode).copy()
-                        node.arguments?.expressions?.get(index)?.let { visitExpressionNode(it) }
-                        when {
-                            stack.size == 0 || stack.last() !is Int -> throw ExecutorError("Incorrect expression in function call ${function.id.name}")
-                            else -> {
-                                value.setExpression(LiteralNode(stack.last() as Int))
-                                function.body.block.scope.add(value.id, value)
-                                stack.removeAt(stack.lastIndex)
-                            }
-                        }
-                    }
-                }
-                visitBlockWithBracesNode(function.body)
-                if (checkReturnStatement()) stack.removeAt(stack.lastIndex)
-            }
+            visitBlockWithBracesNode(function.body)
+            if (checkReturnStatement()) stack.removeAt(stack.lastIndex)
         }
     }
 
@@ -94,7 +87,7 @@ class Executor: Visitor() {
         val variable = find(node.id) as VariableNode
         visitExpressionNode(node.expr)
         if (stack.size == 0 || stack.last() !is Int) throw ExecutorError("Incorrect assignment")
-        variable.setExpression(LiteralNode(stack.last() as Int))
+        variable.expr = LiteralNode(stack.last() as Int)
         stack.removeAt(stack.lastIndex)
     }
 
@@ -135,10 +128,8 @@ class Executor: Visitor() {
         visitExpressionNode(node.expr)
         val condition = stack.last() as Boolean
         stack.removeAt(stack.lastIndex)
-        when {
-            condition -> visitBlockWithBracesNode(node.thenBlock)
-            node.elseBlock != null -> visitBlockWithBracesNode(node.elseBlock)
-        }
+        if (condition) visitBlockWithBracesNode(node.thenBlock)
+        else if (node.elseBlock != null) visitBlockWithBracesNode(node.elseBlock)
     }
 
     override fun visitReturnNode(node: ReturnNode) {

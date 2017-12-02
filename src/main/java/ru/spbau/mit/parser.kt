@@ -1,8 +1,6 @@
 package ru.spbau.mit
 
-class Parser(val tokenList: List<List<Token>>) {
-    var lineNumber = 0;
-    var positionInLine = 0;
+class Parser(val lexer: Lexer) {
 
     fun parseBlockNode(scope: Scope): Pair<BlockNode, Scope> {
         val statements: MutableList<StatementNode> = mutableListOf()
@@ -11,156 +9,121 @@ class Parser(val tokenList: List<List<Token>>) {
             val (expr, nextScope) = parseStatementNode(newScope)
             statements.add(expr)
             newScope = nextScope
-            tryIncrementPosition()
-            if (tokenList.size == lineNumber) break
-            val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            lexer.tryIncrementPosition()
+            if (lexer.isEndOfProgram()) break
+            val nextTok = lexer.getCurrentToken() as? KeyWordToken
         } while (nextTok == null || nextTok.tok != KeyWord.RBRACE)
         return BlockNode(statements, newScope) to newScope
     }
 
-    private fun tryIncrementPosition() {
-        when {
-            tokenList[lineNumber].size == positionInLine + 1 -> {
-                lineNumber++
-                while(lineNumber < tokenList.size && tokenList[lineNumber].isEmpty()) lineNumber++
-                positionInLine = 0
-            }
-            else -> positionInLine++
-        }
-    }
-
-    private fun parseStatementNode(scope: Scope): Pair<StatementNode, Scope> = when(tokenList[lineNumber][positionInLine]) {
+    private fun parseStatementNode(scope: Scope): Pair<StatementNode, Scope> = when(lexer.getCurrentToken()) {
         KeyWordToken(KeyWord.FUN) -> parseFunctionNode(scope)
         KeyWordToken(KeyWord.VAR) -> parseVariableNode(scope)
         KeyWordToken(KeyWord.WHILE) -> parseWhileNode(scope)
         KeyWordToken(KeyWord.IF) -> parseIfNode(scope)
         KeyWordToken(KeyWord.RETURN) -> parseReturnNode(scope)
-        else -> when {
-            tokenList[lineNumber][positionInLine + 1] == KeyWordToken(KeyWord.ASSIGN) -> parseAssignmentNode(scope)
-            else -> parseExpressionNode(scope)
-        }
+        else -> if (lexer.showNextToken() == KeyWordToken(KeyWord.ASSIGN)) parseAssignmentNode(scope)
+        else parseExpressionNode(scope)
     }
 
     private fun parseFunctionCallNode(scope: Scope): Pair<FunctionCallNode, Scope> {
         val (id, _) = parseIdentifierNode(scope)
-        if (id.name != "println" && !scope.contains(id)) throw ParserError("Not found declaration ${id.name} in line$lineNumber")
-        incrementPosition()
-        var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.LPAREN) throw ParserError("Expected ( not found in line$lineNumber")
-        incrementPosition()
+        if (id.name != "println" && !scope.contains(id))
+            throw ParserError("Not found declaration ${id.name} in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
+        var paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.LPAREN)
+            throw ParserError("Expected ( not found in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
         var arguments: ArgumentsNode? = null
-        paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        when (paren) {
-            null -> {
-                arguments = parseArgumentsNode(scope).component1()
-                incrementPosition()
-                paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            }
+        paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null) {
+            arguments = parseArgumentsNode(scope).component1()
+            lexer.incrementPosition()
+            paren = lexer.getCurrentToken() as? KeyWordToken
         }
-        if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
+        if (paren == null || paren.tok != KeyWord.RPAREN)
+            throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
         return FunctionCallNode(id, arguments) to scope
-    }
-
-    private fun incrementPosition(count: Int = 1) {
-        (1..count).forEach { _ ->
-            tryIncrementPosition()
-            if (lineNumber == tokenList.size) throw ParserError("Unexpected end of file in line$lineNumber")
-        }
     }
 
     private fun parseArgumentsNode(scope: Scope): Pair<ArgumentsNode, Scope> {
         val expressionList = mutableListOf<ExpressionNode>()
-        decrementPosition()
+        lexer.decrementPosition()
         do {
-            incrementPosition()
+            lexer.incrementPosition()
             expressionList.add(parseExpressionNode(scope).component1())
-            incrementPosition()
-            val comma = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            lexer.incrementPosition()
+            val comma = lexer.getCurrentToken() as? KeyWordToken
         } while (comma != null && comma.tok == KeyWord.COMMA)
-        decrementPosition()
+        lexer.decrementPosition()
         return ArgumentsNode(expressionList) to scope
-    }
-
-    private fun decrementPosition(count: Int = 1) {
-        (1..count).forEach { _ ->
-            when (positionInLine) {
-                0 -> {
-                    lineNumber--
-                    while (tokenList[lineNumber].isEmpty()) lineNumber--
-                    positionInLine = tokenList[lineNumber].size - 1
-                }
-                else -> positionInLine--
-            }
-        }
     }
 
     private fun parseAssignmentNode(scope: Scope): Pair<AssignmentNode, Scope> {
         val (id, _) = parseIdentifierNode(scope)
-        incrementPosition(2)
+        lexer.incrementPosition(2)
         val (expression, _) = parseExpressionNode(scope)
         return AssignmentNode(id, expression) to scope
     }
 
     private fun parseReturnNode(scope: Scope): Pair<ReturnNode, Scope> {
-        incrementPosition()
+        lexer.incrementPosition()
         return ReturnNode(parseExpressionNode(scope).component1()) to scope
     }
 
     private fun parseIfNode(scope: Scope): Pair<IfNode, Scope> {
-        incrementPosition()
-        var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.LPAREN) throw ParserError("Expected ( not found in line$lineNumber")
-        incrementPosition()
+        lexer.incrementPosition()
+        var paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.LPAREN)
+            throw ParserError("Expected ( not found in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
         val (expression, _) = parseExpressionNode(scope)
-        incrementPosition()
-        paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
+        lexer.incrementPosition()
+        paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.RPAREN)
+            throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
         val (blockThen, _) = parseBlockWithBracesNode(scope)
 
         var blockElse: BlockWithBracesNode? = null
-        tryIncrementPosition()
-        when {
-            lineNumber != tokenList.size -> {
-                val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                when {
-                    nextTok != null && nextTok.tok == KeyWord.ELSE -> blockElse = parseBlockWithBracesNode(scope).component1()
-                    else -> decrementPosition()
-                }
-            }
-            else -> decrementPosition()
+        lexer.tryIncrementPosition()
+        if (!lexer.isEndOfProgram()) {
+            val nextTok = lexer.getCurrentToken() as? KeyWordToken
+            if (nextTok != null && nextTok.tok == KeyWord.ELSE) blockElse = parseBlockWithBracesNode(scope).component1()
+            else lexer.decrementPosition()
         }
+        else lexer.decrementPosition()
         return IfNode(expression, blockThen, blockElse) to scope
     }
 
     private fun parseWhileNode(scope: Scope): Pair<WhileNode, Scope> {
-        incrementPosition()
-        var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.LPAREN) throw ParserError("Expected ( not found in line$lineNumber")
-        incrementPosition()
+        lexer.incrementPosition()
+        var paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.LPAREN)
+            throw ParserError("Expected ( not found in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
         val (expression, _) = parseExpressionNode(scope)
-        incrementPosition()
-        paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
+        lexer.incrementPosition()
+        paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.RPAREN)
+            throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
         val (block, _) = parseBlockWithBracesNode(scope)
         return WhileNode(expression, block) to scope
     }
 
     private fun parseVariableNode(scope: Scope): Pair<VariableNode, Scope> {
-        incrementPosition()
+        lexer.incrementPosition()
         val (id, _) = parseIdentifierNode(scope)
 
         var expression: ExpressionNode? = null
-        tryIncrementPosition()
-        when {
-            lineNumber != tokenList.size -> {
-                val nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
-                    incrementPosition()
-                    expression = parseExpressionNode(scope).component1()
-                } else {
-                    decrementPosition()
-                }
+        lexer.tryIncrementPosition()
+        if (!lexer.isEndOfProgram()) {
+            val nextTok = lexer.getCurrentToken() as? KeyWordToken
+            if (nextTok != null && nextTok.tok == KeyWord.ASSIGN) {
+                lexer.incrementPosition()
+                expression = parseExpressionNode(scope).component1()
             }
+            else lexer.decrementPosition()
         }
         val variable = VariableNode(id, expression)
         val newScope = Scope(scope.variables.toMutableMap())
@@ -169,32 +132,30 @@ class Parser(val tokenList: List<List<Token>>) {
     }
 
     private fun parseFunctionNode(scope: Scope): Pair<FunctionNode, Scope> {
-        incrementPosition()
+        lexer.incrementPosition()
         val (id, _) = parseIdentifierNode(scope)
 
-        incrementPosition()
-        var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (paren == null || paren.tok != KeyWord.LPAREN) throw ParserError("Expected ( not found in line$lineNumber")
-        incrementPosition()
+        lexer.incrementPosition()
+        var paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null || paren.tok != KeyWord.LPAREN)
+            throw ParserError("Expected ( not found in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
 
         var parameters: ParameterNamesNode? = null
         var newScope = scope.copy()
-        paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        when (paren) {
-            null -> {
-                val parsed = parseParametersNode(scope)
-                parameters = parsed.component1()
-                newScope = parsed.component2()
-                incrementPosition()
-                paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            }
+        paren = lexer.getCurrentToken() as? KeyWordToken
+        if (paren == null) {
+            val parsed = parseParametersNode(scope)
+            parameters = parsed.component1()
+            newScope = parsed.component2()
+            lexer.incrementPosition()
+            paren = lexer.getCurrentToken() as? KeyWordToken
         }
-        if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
+        if (paren == null || paren.tok != KeyWord.RPAREN)
+            throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
         newScope.add(id)
         val (block, _) = parseBlockWithBracesNode(newScope)
-        when {
-            block.block.statementList.last() !is ReturnNode -> block.block.statementList.add(ReturnNode(LiteralNode(0)))
-        }
+        if (block.block.statementList.last() !is ReturnNode) block.block.statementList.add(ReturnNode(LiteralNode(0)))
         val function = FunctionNode(id, parameters, block)
         newScope = scope.copy()
         newScope.add(id, function)
@@ -208,21 +169,23 @@ class Parser(val tokenList: List<List<Token>>) {
             val (id, _) = parseIdentifierNode(scope)
             parametersList.add(id)
             newScope.add(id, VariableNode(id, null))
-            incrementPosition()
-            val comma = tokenList[lineNumber][positionInLine] as? KeyWordToken
+            lexer.incrementPosition()
+            val comma = lexer.getCurrentToken() as? KeyWordToken
         } while (comma != null && comma.tok == KeyWord.COMMA)
-        decrementPosition()
+        lexer.decrementPosition()
         return ParameterNamesNode(parametersList) to newScope
     }
 
     private fun parseBlockWithBracesNode(scope: Scope): Pair<BlockWithBracesNode, Scope> {
-        incrementPosition()
-        var brace = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (brace == null || brace.tok != KeyWord.LBRACE) throw ParserError("Expected { not found in line$lineNumber")
-        incrementPosition()
+        lexer.incrementPosition()
+        var brace = lexer.getCurrentToken() as? KeyWordToken
+        if (brace == null || brace.tok != KeyWord.LBRACE)
+            throw ParserError("Expected { not found in line${lexer.getLineNumber()}")
+        lexer.incrementPosition()
         val (block, _) = parseBlockNode(scope)
-        brace = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        if (brace == null || brace.tok != KeyWord.RBRACE) throw ParserError("Expected } not found in line$lineNumber")
+        brace = lexer.getCurrentToken() as? KeyWordToken
+        if (brace == null || brace.tok != KeyWord.RBRACE)
+            throw ParserError("Expected } not found in line${lexer.getLineNumber()}")
         return BlockWithBracesNode(block) to scope
     }
 
@@ -233,95 +196,91 @@ class Parser(val tokenList: List<List<Token>>) {
 
     private fun parseBinaryOperationNode(scope: Scope, stopToken: KeyWordToken?): Pair<ExpressionNode, Scope> {
         fun endOfExpression(): Boolean {
-            if (lineNumber == tokenList.size) return true
-            val tok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-            return positionInLine == 0 || (stopToken != null && tok == stopToken) || (tok != null &&
+            if (lexer.isEndOfProgram()) return true
+            val tok = lexer.getCurrentToken() as? KeyWordToken
+            return lexer.isEndOfLine() || (stopToken != null && tok == stopToken) || (tok != null &&
                     (tok.tok == KeyWord.RPAREN || tok.tok == KeyWord.RBRACE || tok.tok == KeyWord.COMMA))
         }
 
-        var arg1: ExpressionNode = IdentifierNode("fun");
-        var nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-        when {
-            nextTok != null && nextTok.tok == KeyWord.LPAREN -> {
-                incrementPosition()
-                arg1 = parseExpressionNode(scope).component1()
-                incrementPosition()
-                var paren = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                if (paren == null || paren.tok != KeyWord.RPAREN) throw ParserError("Expected ) not found in line$lineNumber")
+        var firstArgument: ExpressionNode = IdentifierNode("fun");
+        var nextTok = lexer.getCurrentToken() as? KeyWordToken
+        if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
+            lexer.incrementPosition()
+            firstArgument = parseExpressionNode(scope).component1()
+            lexer.incrementPosition()
+            var paren = lexer.getCurrentToken() as? KeyWordToken
+            if (paren == null || paren.tok != KeyWord.RPAREN)
+                throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
+        }
+
+        if (firstArgument == IdentifierNode("fun")) {
+            lexer.incrementPosition()
+            nextTok = lexer.getCurrentToken() as? KeyWordToken
+            lexer.decrementPosition()
+            if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
+                firstArgument = parseFunctionCallNode(scope).component1()
             }
         }
 
-        when (arg1) {
-            IdentifierNode("fun") -> {
-                incrementPosition()
-                nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                decrementPosition()
-                if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
-                    arg1 = parseFunctionCallNode(scope).component1()
-                }
-            }
+        if (firstArgument == IdentifierNode("fun")) firstArgument =
+                if (lexer.getCurrentToken() is LiteralToken) parseLiteralNode(scope).component1()
+                else parseIdentifierNode(scope).component1()
+
+        lexer.tryIncrementPosition()
+        if (endOfExpression()) {
+            lexer.decrementPosition()
+            return firstArgument to scope
         }
+        else {
+            while (!endOfExpression()) {
+                val op = lexer.getCurrentToken() as? KeyWordToken ?:
+                        throw ParserError("Expected binary operator not found in line${lexer.getLineNumber()}")
 
-        when (arg1) {
-            IdentifierNode("fun") -> arg1 = when {
-                tokenList[lineNumber][positionInLine] is LiteralToken -> parseLiteralNode(scope).component1()
-                else -> parseIdentifierNode(scope).component1()
-            }
-        }
-
-        tryIncrementPosition()
-        when {
-            endOfExpression() -> {
-                decrementPosition()
-                return arg1 to scope
-            }
-            else -> {
-                while (!endOfExpression()) {
-                    val op = tokenList[lineNumber][positionInLine] as KeyWordToken
-
-                    var step = -1
-                    while (true) {
-                        incrementPosition()
+                var step = -1
+                while (true) {
+                    lexer.incrementPosition()
+                    step++
+                    nextTok = lexer.getCurrentToken() as? KeyWordToken
+                    if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
+                        do {
+                            step++
+                            lexer.incrementPosition()
+                            nextTok = lexer.getCurrentToken() as? KeyWordToken
+                        } while (nextTok == null || nextTok.tok != KeyWord.RPAREN)
+                        lexer.incrementPosition()
                         step++
-                        nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                        when {
-                            nextTok != null && nextTok.tok == KeyWord.LPAREN -> {
-                                do {
-                                    step++
-                                    incrementPosition()
-                                    nextTok = tokenList[lineNumber][positionInLine] as? KeyWordToken
-                                } while (nextTok == null || nextTok.tok != KeyWord.RPAREN)
-                                incrementPosition()
-                                step++
-                            }
-                        }
-                        if (endOfExpression() || (nextTok != null && isOpToken(nextTok) && getPriority(nextTok.tok) <= getPriority(op.tok)))
-                            break
                     }
-
-                    val stopOp = tokenList[lineNumber][positionInLine] as KeyWordToken
-                    decrementPosition(step)
-
-                    val (arg2, _) = parseExpressionNode(scope, stopOp)
-                    if (arg1 is IdentifierNode && !scope.contains(arg1)) throw ParserError("Not found declaration ${arg1.name} in line$lineNumber")
-                    if (arg2 is IdentifierNode && !scope.contains(arg2)) throw ParserError("Not found declaration ${arg2.name} in line$lineNumber")
-                    arg1 = BinaryExpressionNode(arg1, arg2, op.tok)
-                    incrementPosition()
+                    if (endOfExpression() ||
+                            (nextTok != null && isOpToken(nextTok) && getPriority(nextTok.tok) <= getPriority(op.tok)))
+                        break
                 }
-                decrementPosition()
-                return arg1 to scope;
+
+                val stopOp = lexer.getCurrentToken() as KeyWordToken
+                lexer.decrementPosition(step)
+
+                val (secondArgument, _) = parseExpressionNode(scope, stopOp)
+                if (firstArgument is IdentifierNode && !scope.contains(firstArgument))
+                    throw ParserError("Not found declaration ${firstArgument.name} in line${lexer.getLineNumber()}")
+                if (secondArgument is IdentifierNode && !scope.contains(secondArgument))
+                    throw ParserError("Not found declaration ${secondArgument.name} in line${lexer.getLineNumber()}")
+                firstArgument = BinaryExpressionNode(firstArgument, secondArgument, op.tok)
+                lexer.incrementPosition()
             }
+            lexer.decrementPosition()
+            return firstArgument to scope;
         }
 
     }
 
     private fun parseLiteralNode(scope: Scope): Pair<LiteralNode, Scope> {
-        val value = tokenList[lineNumber][positionInLine] as? LiteralToken ?: throw ParserError("Unknown symbol in line$lineNumber")
+        val value = lexer.getCurrentToken() as? LiteralToken ?:
+                throw ParserError("Unknown symbol in line${lexer.getLineNumber()}")
         return LiteralNode(value.int) to scope
     }
 
     private fun parseIdentifierNode(scope: Scope): Pair<IdentifierNode, Scope> {
-        val id = tokenList[lineNumber][positionInLine] as? IdToken ?: throw ParserError("Unknown symbol in line$lineNumber")
+        val id = lexer.getCurrentToken() as? IdToken ?:
+                throw ParserError("Unknown symbol in line${lexer.getLineNumber()}")
         return IdentifierNode(id.string) to scope
     }
 

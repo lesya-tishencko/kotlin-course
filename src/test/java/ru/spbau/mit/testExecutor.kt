@@ -64,7 +64,7 @@ class TestExecutor {
         val programText = listOf("fun foo() { println(0) }", "foo()")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()

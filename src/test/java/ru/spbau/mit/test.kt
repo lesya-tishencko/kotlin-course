@@ -10,7 +10,7 @@ class TestMain {
                 "    }", "", "    return bar(1)", "}", "", "return foo(41)")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
@@ -28,7 +28,7 @@ class TestMain {
 
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()
@@ -45,7 +45,7 @@ class TestMain {
 
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         val visitor = Executor()

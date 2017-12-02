@@ -41,10 +41,54 @@ val strToTokenMap = mapOf(
 )
 
 class Lexer(private val programText: List<String>) {
-    val programTokens: MutableList<MutableList<Token>> = mutableListOf()
+    private val programTokens: MutableList<MutableList<Token>> = mutableListOf()
+
+    private var lineNumber = 0;
+    private var positionInLine = 0;
 
     fun setSource() = programText.forEach {
         line -> programTokens.add(getNextLine(line))
+    }
+
+    fun isEndOfProgram() = programTokens.size == lineNumber
+
+    fun isEndOfLine() = positionInLine == 0
+
+    fun getLineNumber() = lineNumber
+
+    fun getCurrentToken() = programTokens[lineNumber][positionInLine]
+
+    fun showNextToken() = programTokens[lineNumber][positionInLine + 1]
+
+    fun tryIncrementPosition() {
+        when {
+            programTokens[lineNumber].size == positionInLine + 1 -> {
+                lineNumber++
+                while(lineNumber < programTokens.size && programTokens[lineNumber].isEmpty()) lineNumber++
+                positionInLine = 0
+            }
+            else -> positionInLine++
+        }
+    }
+
+    fun incrementPosition(count: Int = 1) {
+        (1..count).forEach { _ ->
+            tryIncrementPosition()
+            if (lineNumber == programTokens.size) throw ParserError("Unexpected end of file in line$lineNumber")
+        }
+    }
+
+    fun decrementPosition(count: Int = 1) {
+        (1..count).forEach { _ ->
+            when (positionInLine) {
+                0 -> {
+                    lineNumber--
+                    while (programTokens[lineNumber].isEmpty()) lineNumber--
+                    positionInLine = programTokens[lineNumber].size - 1
+                }
+                else -> positionInLine--
+            }
+        }
     }
 
     private fun getNextLine(line: String): MutableList<Token> {

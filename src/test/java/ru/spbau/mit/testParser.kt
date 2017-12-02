@@ -10,7 +10,7 @@ class TestParser {
                 "    }", "", "    return bar(1)", "}", "", "println(foo(41))")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         assert(mainNode.statementList[0] is FunctionNode)
@@ -27,7 +27,7 @@ class TestParser {
 
         funNode = funNode.body.block.statementList[0] as FunctionNode
         assertEquals(IdentifierNode("bar"), funNode.id)
-        val body = ((funNode.body.block.statementList[0] as ReturnNode).expr as BinaryExpressionNode)!!
+        val body = ((funNode.body.block.statementList[0] as ReturnNode).expr as BinaryExpressionNode)
         assertEquals(BinaryExpressionNode(IdentifierNode("m"), IdentifierNode("n"), KeyWord.ADD), body)
     }
 
@@ -39,7 +39,7 @@ class TestParser {
 
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         assert(mainNode.statementList[0] is FunctionNode)
@@ -68,7 +68,7 @@ class TestParser {
 
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         assert(mainNode.statementList[0] is VariableNode)
@@ -86,11 +86,21 @@ class TestParser {
     }
 
     @Test(expected = ParserError::class)
+    fun testRandomSequence() {
+        val programText = listOf("eiuytf iuyg 1234 = 234")
+        var lexer = Lexer(programText)
+        lexer.setSource()
+        val parser = Parser(lexer)
+
+        parser.parseBlockNode(Scope()).component1()
+    }
+
+    @Test(expected = ParserError::class)
     fun testErrorNotFoundBraces() {
         val programText = listOf("var a = 4", "if (a > 5) a + 1")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         parser.parseBlockNode(Scope()).component1()
     }
@@ -100,7 +110,7 @@ class TestParser {
         val programText = listOf("var a = 4", "if a > 5 { a + 1 }")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
         parser.parseBlockNode(Scope()).component1()
     }
 
@@ -109,7 +119,7 @@ class TestParser {
         val programText = listOf("if (a > 5)", "{ a + 1 }")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         parser.parseBlockNode(Scope()).component1()
     }
@@ -119,7 +129,7 @@ class TestParser {
         val programText = listOf("var a = 4", "if (a > 5)", "{ foo(2) }")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         parser.parseBlockNode(Scope()).component1()
     }
@@ -129,7 +139,7 @@ class TestParser {
         val programText = listOf("var a = 4", "if (a > 5)", "{ println(2) }")
         val lexer = Lexer(programText)
         lexer.setSource()
-        val parser = Parser(lexer.programTokens)
+        val parser = Parser(lexer)
 
         val mainNode = parser.parseBlockNode(Scope()).component1()
         assert(mainNode.statementList[1] is IfNode)
