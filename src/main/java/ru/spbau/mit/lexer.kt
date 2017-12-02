@@ -43,8 +43,8 @@ val strToTokenMap = mapOf(
 class Lexer(private val programText: List<String>) {
     private val programTokens: MutableList<MutableList<Token>> = mutableListOf()
 
-    private var lineNumber = 0;
-    private var positionInLine = 0;
+    private var lineNumber = 0
+    private var positionInLine = 0
 
     fun setSource() = programText.forEach {
         line -> programTokens.add(getNextLine(line))
@@ -93,7 +93,7 @@ class Lexer(private val programText: List<String>) {
 
     private fun getNextLine(line: String): MutableList<Token> {
         val tokenList: MutableList<Token> = mutableListOf()
-        var pos = 0;
+        var pos = 0
         fun getNextWord(): String {
             while (pos < line.length && line[pos].isWhitespace()) pos += 1
             if (pos >= line.length) return ""
@@ -101,7 +101,7 @@ class Lexer(private val programText: List<String>) {
             while (pos < line.length && !line[pos].isWhitespace()) {
                 result += when (line[pos]) {
                     '/' -> if (result.last() == '/') return "" else line[pos++]
-                    '(', ')', ',' -> if (result.isEmpty()) return line[pos++].toString() else return result
+                    '(', ')', ',' -> return if (result.isEmpty()) line[pos++].toString() else result
                     else -> line[pos++]
                 }
             }

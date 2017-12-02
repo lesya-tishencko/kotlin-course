@@ -69,7 +69,7 @@ data class FunctionNode(val id: IdentifierNode, val arguments: ParameterNamesNod
 }
 
 class Scope(val variables: MutableMap<IdentifierNode, StatementNode> = mutableMapOf(),
-            private val notInitializedId: MutableSet<IdentifierNode> = mutableSetOf<IdentifierNode>()) {
+            private val notInitializedId: MutableSet<IdentifierNode> = mutableSetOf()) {
 
     fun add(id: IdentifierNode, variable: StatementNode) = variables.put(id, variable)
     fun add(id: IdentifierNode) = notInitializedId.add(id)

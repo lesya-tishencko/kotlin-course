@@ -1,4 +1,5 @@
 package ru.spbau.mit
+
 import kotlin.test.assertEquals
 import org.junit.Test
 import kotlin.test.assertNotNull
@@ -21,7 +22,7 @@ class TestParser {
         assert(funNode.body.block.statementList[0] is FunctionNode)
         assert(funNode.body.block.statementList[1] is ReturnNode)
 
-        val returnNode = (funNode.body.block.statementList[1] as ReturnNode)!!
+        val returnNode = (funNode.body.block.statementList[1] as ReturnNode)
         val expectedReturnNode = ReturnNode(FunctionCallNode(IdentifierNode("bar"), ArgumentsNode(mutableListOf(LiteralNode(1)))))
         assertEquals(expectedReturnNode, returnNode)
 
@@ -46,7 +47,7 @@ class TestParser {
         assert(mainNode.statementList[1] is VariableNode)
         assert(mainNode.statementList[2] is WhileNode)
 
-        val ifNode = ((mainNode.statementList[0] as FunctionNode).body.block.statementList[0] as IfNode)!!
+        val ifNode = ((mainNode.statementList[0] as FunctionNode).body.block.statementList[0] as IfNode)
         assertEquals(BinaryExpressionNode(IdentifierNode("n"), LiteralNode(1), KeyWord.LE), ifNode.expr)
         assertEquals(ReturnNode(LiteralNode(1)), ifNode.thenBlock.block.statementList[0])
 
@@ -55,7 +56,7 @@ class TestParser {
 
         val whileNode = mainNode.statementList[2] as WhileNode
         assertEquals(BinaryExpressionNode(IdentifierNode("i"), LiteralNode(5), KeyWord.LE), whileNode.expr)
-        val printlnNode = (whileNode.body.block.statementList[0] as FunctionCallNode)!!
+        val printlnNode = (whileNode.body.block.statementList[0] as FunctionCallNode)
         assertEquals(IdentifierNode("println"), printlnNode.id)
         assertEquals(2, printlnNode.arguments!!.expressions.size)
         assert(printlnNode.arguments!!.expressions[1] is FunctionCallNode)
@@ -81,14 +82,14 @@ class TestParser {
         val ifNode = mainNode.statementList[2] as IfNode
         assertEquals(BinaryExpressionNode(IdentifierNode("a"), IdentifierNode("b"), KeyWord.GT), ifNode.expr)
         assertNotNull(ifNode.elseBlock)
-        val elseExpr = (ifNode.elseBlock!!.block.statementList[0] as FunctionCallNode)!!
+        val elseExpr = (ifNode.elseBlock!!.block.statementList[0] as FunctionCallNode)
         assertEquals(FunctionCallNode(IdentifierNode("println"), ArgumentsNode(mutableListOf(LiteralNode(0)))), elseExpr)
     }
 
     @Test(expected = ParserError::class)
     fun testRandomSequence() {
         val programText = listOf("eiuytf iuyg 1234 = 234")
-        var lexer = Lexer(programText)
+        val lexer = Lexer(programText)
         lexer.setSource()
         val parser = Parser(lexer)
 

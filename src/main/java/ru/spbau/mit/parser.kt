@@ -1,6 +1,6 @@
 package ru.spbau.mit
 
-class Parser(val lexer: Lexer) {
+class Parser(private val lexer: Lexer) {
 
     fun parseBlockNode(scope: Scope): Pair<BlockNode, Scope> {
         val statements: MutableList<StatementNode> = mutableListOf()
@@ -191,7 +191,7 @@ class Parser(val lexer: Lexer) {
 
     private fun parseExpressionNode(scope: Scope, stopToken: KeyWordToken? = null): Pair<ExpressionNode, Scope> {
         val expression = parseBinaryOperationNode(scope, stopToken).component1()
-        return expression to scope;
+        return expression to scope
     }
 
     private fun parseBinaryOperationNode(scope: Scope, stopToken: KeyWordToken?): Pair<ExpressionNode, Scope> {
@@ -202,13 +202,13 @@ class Parser(val lexer: Lexer) {
                     (tok.tok == KeyWord.RPAREN || tok.tok == KeyWord.RBRACE || tok.tok == KeyWord.COMMA))
         }
 
-        var firstArgument: ExpressionNode = IdentifierNode("fun");
+        var firstArgument: ExpressionNode = IdentifierNode("fun")
         var nextTok = lexer.getCurrentToken() as? KeyWordToken
         if (nextTok != null && nextTok.tok == KeyWord.LPAREN) {
             lexer.incrementPosition()
             firstArgument = parseExpressionNode(scope).component1()
             lexer.incrementPosition()
-            var paren = lexer.getCurrentToken() as? KeyWordToken
+            val paren = lexer.getCurrentToken() as? KeyWordToken
             if (paren == null || paren.tok != KeyWord.RPAREN)
                 throw ParserError("Expected ) not found in line${lexer.getLineNumber()}")
         }
@@ -267,7 +267,7 @@ class Parser(val lexer: Lexer) {
                 lexer.incrementPosition()
             }
             lexer.decrementPosition()
-            return firstArgument to scope;
+            return firstArgument to scope
         }
 
     }

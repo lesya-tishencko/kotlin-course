@@ -27,7 +27,7 @@ class Executor: Visitor() {
         return scopesList.reversed()
                 .firstOrNull { (key, _) -> key == entity }
                 ?.let { (_, value) -> value }
-                ?: StatementNode();
+                ?: StatementNode()
     }
 
     override fun visitIdentifierNode(node: IdentifierNode) {
